@@ -93,7 +93,7 @@ static float g_width, g_height;
 static float phi = 0, theta = 0;
 float lightx, lighty, lightz;
 
-float g_Camtrans = -2.5;
+float g_Camtrans = -6.0;
 vec3 wBar;
 vec3 uBar;
 vec3 vBar;
@@ -105,7 +105,7 @@ int shadeMode=1;
 vec3 g_trans(0);
 mat4 microScale = scale(mat4(1.0f), vec3(0.1,0.1,0.1));
 vec3 eyePos = vec3(0.0,0.0,-g_Camtrans);
-vec3 lookAtPoint = eyePos + vec3(0.0,0.0,-1.0);
+vec3 lookAtPoint;// = eyePos + vec3(0.0,0.0,-1.0);
 vec3 upVec = vec3(0.0,1.0,0.0);
 
 static const float g_groundY = -.51;      // y coordinate of the ground
@@ -131,6 +131,7 @@ GLint h_uProjMatrix;
 vec3 rotStart;
 mat4 trackBall;
 int collisions;
+float friction = 30.0f;
 
 //every object has one of these -- size() = number of objects
 vector<GameObject> Objects; //name
@@ -471,7 +472,8 @@ void InitGeom() {
    scaleObj(4,0.5,0.5,0.5f);
    scaleObj(0,1.0,2.0,1.0f);
    //rotateObj(3,0.0f,0.0f,90.0f);
-   transObj(0,eyePos.x,eyePos.y,eyePos.z);
+   //transObj(0,eyePos.x,eyePos.y,eyePos.z);
+   lookAtPoint = Objects[0].state.pos;
    transObj(1,lightx,lighty,0.0);
    transObj(4,0.0,5.5,0.0f);
    Objects[4].setVelocity(vec3(0.5,0.5,0.5));
@@ -612,7 +614,7 @@ void Initialize ()               // Any GL Init Code
 void Update(double timeStep) {
    vec3 min, max;
    map<int,int> dels;
-   Objects[0].state.velocity *= exp(-5.0 * timeStep);
+   Objects[0].state.velocity *= exp(-friction * timeStep);
    for (int i = 0; i < Objects.size(); i++) {
       Objects[i].update(timeStep);
          min = vec3(Objects[i].bounds.left,Objects[i].bounds.bottom,Objects[i].bounds.back) + Objects[i].state.pos;
@@ -725,7 +727,7 @@ int w2py(float in_y) {
 
 //the keyboard callback to change the values to the transforms
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-   float speed = 20.0;
+   float speed = 10.0;
    vec3 temp;
    if (action == GLFW_PRESS || action == GLFW_REPEAT) {
       switch( key ) {
@@ -753,7 +755,7 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
       }
       Objects[0].setVelocity(temp*vec3(1.0,0.0,1.0));
       lookAtPoint = Objects[0].state.pos;
-      eyePos = lookAtPoint - wBar;
+      eyePos = lookAtPoint + wBar * g_Camtrans;
 
       wBar = normalize(lookAtPoint-eyePos);
       uBar = normalize(cross(upVec,wBar));
@@ -824,6 +826,9 @@ int main( int argc, char *argv[] ) {
    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
    glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_FALSE);
    glfwSetFramebufferSizeCallback(window, ReshapeGL);
+   wBar = normalize(lookAtPoint-eyePos);
+   uBar = normalize(cross(upVec,wBar));
+   vBar = cross(wBar,uBar);
    while (!glfwWindowShouldClose(window)) {
       double timey = glfwGetTime(), lastTime = glfwGetTime();
       sprintf(title, "%i %s", collisions, "Collisions!"); 
@@ -840,10 +845,12 @@ int main( int argc, char *argv[] ) {
       Update((timey-lastTime)*2.0);
       lastTime = glfwGetTime();
       glViewport(0, 0, width, height);
-      eyePos = Objects[0].state.pos;
-      lookAtPoint.x = eyePos.x + cos(phi)*cos(theta);
-      lookAtPoint.y = eyePos.y + sin(phi);
-      lookAtPoint.z = eyePos.z + cos(phi)*cos(M_PI/2.0-theta);
+      lookAtPoint = Objects[0].state.pos;
+      eyePos = lookAtPoint + wBar * g_Camtrans;
+
+      wBar = normalize(lookAtPoint-eyePos);
+      uBar = normalize(cross(upVec,wBar));
+      vBar = cross(wBar,uBar);
       Draw();
       glfwSwapBuffers(window);
       glfwPollEvents();
