@@ -38,7 +38,6 @@
 #define PI 3.14159265
 
 #include <GLFW/glfw3.h>
-#include "GameObject.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
@@ -53,6 +52,7 @@
 #include "glm/gtx/vector_query.hpp" //
 #include "Modeling/CMesh.h"
 #include "Engine/chunks.h"
+#include "GameObject.h"
 
 using namespace glm;
 using namespace std;
@@ -667,7 +667,7 @@ void Draw (void)
 
     //printf("%d\n", Objects.size());
       //data set up to access the vertices and color
-   for (int i = 1; i < Objects.size(); i++) {
+   for (int i = 0; i < Objects.size(); i++) {
       Objects[i].draw();
    }
    
@@ -730,12 +730,12 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
    if (action == GLFW_PRESS || action == GLFW_REPEAT) {
       switch( key ) {
        /* WASD keyes effect view/camera transform */
-       case GLFW_KEY_W:
-         temp = wBar*speed;
-         break;
-       case GLFW_KEY_S:
-         temp = wBar*-speed;
-         break;
+       //case GLFW_KEY_W:
+       //  temp = wBar*speed;
+       //  break;
+       //case GLFW_KEY_S:
+       //  temp = wBar*-speed;
+       //  break;
        case GLFW_KEY_A:
          temp = uBar*speed;
          break;
@@ -752,10 +752,8 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
          temp = Objects[0].state.velocity;
       }
       Objects[0].setVelocity(temp*vec3(1.0,0.0,1.0));
-      eyePos = Objects[0].state.pos;
-      lookAtPoint.x = eyePos.x + cos(phi)*cos(theta);
-      lookAtPoint.y = eyePos.y + sin(phi);
-      lookAtPoint.z = eyePos.z + cos(phi)*cos(M_PI/2.0-theta);
+      lookAtPoint = Objects[0].state.pos;
+      eyePos = lookAtPoint - wBar;
 
       wBar = normalize(lookAtPoint-eyePos);
       uBar = normalize(cross(upVec,wBar));
@@ -822,7 +820,7 @@ int main( int argc, char *argv[] ) {
    }
    InitGeom();
    glfwSetKeyCallback(window, key_callback);
-   glfwSetCursorPosCallback(window, Martian);
+   //glfwSetCursorPosCallback(window, Martian);
    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
    glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_FALSE);
    glfwSetFramebufferSizeCallback(window, ReshapeGL);
