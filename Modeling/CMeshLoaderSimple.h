@@ -1,5 +1,5 @@
-#ifndef _CMESHLOADER_H_INCLUDED_
-#define _CMESHLOADER_H_INCLUDED_
+#ifndef _CMESHLOADER_H_
+#define _CMESHLOADER_H_
 
 #include <string>
 #include <iostream>
@@ -168,8 +168,8 @@ class SBoundingBox {
       right = right > x ? right : x;
       top = top > y ? top : y;
       bottom = bottom < y ? bottom : y;
-      front = front < z ? front : z;
-      back = back > z ? back : z;
+      front = front > z ? front : z;
+      back = back < z ? back : z;
    }
 
    SVector3 center() {
