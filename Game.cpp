@@ -130,7 +130,7 @@ GLint h_uProjMatrix;
 
 vec3 rotStart;
 mat4 trackBall;
-int collisions;
+int collisions, PLAYER, HAMMER, GROUND;
 float friction = 30.0f;
 
 //every object has one of these -- size() = number of objects
@@ -387,11 +387,11 @@ static void InitGround() {
    Models.push_back(mod);   
 }
 
-int InitObj(int model, int material, int tex, string name, float mass) {
+int InitObj(int model, int material, int tex, string name, float mass, int cG) {
    GameObject obj;
    GameModel *mod = &Models[model];
    ModelMesh *temp;
-   obj = GameObject(mod->bounds, mass, vec3(0.0), name);
+   obj = GameObject(mod->bounds, mass, vec3(0.0), name, cG);
    obj.model = ObjectModel(model);
    for (int i = 0; i < mod->numMeshes; i++) {
       obj.model.meshes.push_back(ObjectMesh(i,material,tex,mod->meshes[i].numFaces,mod->meshes[i].posBuffObj,
@@ -400,6 +400,12 @@ int InitObj(int model, int material, int tex, string name, float mass) {
    Objects.push_back(obj);
    return Objects.size() - 1;
 }
+
+/*void MakeBjorn() {
+   LoadModel("Models/cylinder.obj");
+   LoadModel("Models/sphere.obj");
+
+}*/
 
 void LoadMesh(string fName) {
    CMesh mesh;
@@ -459,24 +465,28 @@ void LoadModel(string fName) {
 void InitGeom() {
    InitCube();
    InitGround();
-   InitObj(0,2,0,"player",1.0);
-   InitObj(0,3,0,"light",0.0);
-   InitObj(1,0,0,"ground",0.0);
+   PLAYER = InitObj(0,2,0,"player",1.0,0);
+   InitObj(0,3,0,"light",0.0,0);
+   Objects[1].gravityAffected = 0;
+   GROUND = InitObj(1,0,0,"ground",0.0,2);
+   Objects[GROUND].gravityAffected = 0;
    LoadMesh("Models/bunny500.m");
-   InitObj(0,1,0,"thing",5.0);
-   InitObj(2,3,0,"dargon",500000.0);
+   LoadMesh("Models/tyra_1k.m");
+   InitObj(0,1,0,"thing",5.0,1);
+   HAMMER = InitObj(3,1,0,"hommer",5.0,0);
    
    //Positions[3] = vec3(0,0,25.0f);
    //rotateObj(3,0,-90.0f,0.0f);
    lightx = lighty = 10.0f;
-   scaleObj(4,0.5,0.5,0.5f);
+   scaleObj(5,0.5,0.5,0.5f);
    scaleObj(0,1.0,2.0,1.0f);
-   //rotateObj(3,0.0f,0.0f,90.0f);
+   rotateObj(4,90.0f,0.0f,90.0f);
    //transObj(0,eyePos.x,eyePos.y,eyePos.z);
    lookAtPoint = Objects[0].state.pos;
    transObj(1,lightx,lighty,0.0);
-   transObj(4,0.0,5.5,0.0f);
-   Objects[4].setVelocity(vec3(0.5,0.5,0.5));
+   transObj(5,0.0,5.5,0.0f);
+   transObj(PLAYER,0.0,2.5,0.0f);
+   Objects[5].setVelocity(vec3(0.5,0.5,0.5));
 }
 
 /* projection matrix */
@@ -612,24 +622,29 @@ void Initialize ()               // Any GL Init Code
 }
 
 void Update(double timeStep) {
-   vec3 min, max;
+   vec3 min, max, force;
    map<int,int> dels;
    Objects[0].state.velocity *= exp(-friction * timeStep);
    for (int i = 0; i < Objects.size(); i++) {
-      Objects[i].update(timeStep);
-         min = vec3(Objects[i].bounds.left,Objects[i].bounds.bottom,Objects[i].bounds.back) + Objects[i].state.pos;
-         max = vec3(Objects[i].bounds.right,Objects[i].bounds.top,Objects[i].bounds.front) + Objects[i].state.pos;
-         //printf("bounds: %f %f %f %f %f %f\n",min.x,min.y,min.z,max.x,max.y,max.z);
-      for (int j = 0; j < Objects.size(); j++) {
-         if (j != i && Objects[i].checkCollision(Objects[j])) {
-            Objects[i].update(-timeStep);
-            if ((!i || !j) && i + j > 2) {
-               printf("%d collides with %d\n", i, j);
-               dels[i+j] = (i+j);
-               transObj(i+j, -50000.0*(i+j),-50000.0,-50000.0);
-               collisions++;
+      if (length(Objects[i].state.velocity) > 0.0001) {
+         Objects[i].update(timeStep);
+         Objects[i].grounded = 0;
+         for (int j = 0; j < Objects.size(); j++) {
+            if (j != i && Objects[i].collisionGroup != Objects[j].collisionGroup && length(force = Objects[i].checkCollision(Objects[j])) > 0.0001) {
+               if (i == HAMMER) {
+                  printf("%s collides with %s\n", Objects[i].name.c_str(), Objects[j].name.c_str());
+                  Objects[PLAYER].applyForce(-force * Objects[HAMMER].mass * (float)timeStep * 10.0f);
+                  collisions++;
+               }
+               else {
+                  Objects[i].update(-timeStep);
+                  Objects[i].state.velocity -= force;
+               }
+               if (j == GROUND) {
+                  Objects[i].grounded = 1;
+               }
+               break;
             }
-            break;
          }
       }
    }
@@ -686,7 +701,7 @@ void ReshapeGL (GLFWwindow * window, int width, int height) {
 }
 
 
-float p2wx(int in_x) {
+float p2wx(double in_x) {
   if (g_width > g_height) {
      return g_width / g_height * (2.0 * in_x / g_width - 1.0);
   }
@@ -695,7 +710,7 @@ float p2wx(int in_x) {
   }
 }
 
-float p2wy(int in_y) {
+float p2wy(double in_y) {
   //flip glut y
   in_y = g_height - in_y;
   if (g_width < g_height) {
@@ -764,25 +779,12 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 }
 
 void Martian(GLFWwindow *window, double x, double y) {
-   /* sync meshes */
-   //printf("%lf %lf\n",x,y);
-   //printf("%f %f\n",g_width,g_height);
-   phi += p2wy((int)y);
-   theta += p2wx((int)x);
-   
-   if (fabsf(phi) > M_PI*4.0/9.0) {
-      phi = 4.0/9.0 * phi/fabsf(phi)*M_PI;
-   }
 
-   lookAtPoint.x = eyePos.x + cos(phi)*cos(theta);
-   lookAtPoint.y = eyePos.y + sin(phi);
-   lookAtPoint.z = eyePos.z + cos(phi)*cos(M_PI/2.0-theta);
+   currPos[0] = p2wx(x);
+   currPos[1] = p2wy(y);
 
-   wBar = normalize(lookAtPoint-eyePos);
-   uBar = normalize(cross(upVec,wBar));
-   vBar = cross(wBar,uBar);
 
-   glfwSetCursorPos(window, (double)g_width/2, (double)g_height/2);
+   //glfwSetCursorPos(window, (double)g_width/2, (double)g_height/2);
 }
 
 static void error_callback(int error, const char* description) {
@@ -822,7 +824,7 @@ int main( int argc, char *argv[] ) {
    }
    InitGeom();
    glfwSetKeyCallback(window, key_callback);
-   //glfwSetCursorPosCallback(window, Martian);
+   glfwSetCursorPosCallback(window, Martian);
    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
    glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_FALSE);
    glfwSetFramebufferSizeCallback(window, ReshapeGL);
@@ -831,17 +833,22 @@ int main( int argc, char *argv[] ) {
    vBar = cross(wBar,uBar);
    while (!glfwWindowShouldClose(window)) {
       double timey = glfwGetTime(), lastTime = glfwGetTime();
+      vec3 mousePos, move;
       sprintf(title, "%i %s", collisions, "Collisions!"); 
       glfwSetWindowTitle(window, title);
       glfwGetFramebufferSize(window, &width, &height);
       inc = (int)timey;
       timey = glfwGetTime();
       if (inc < (int)timey) {
-         obj = InitObj(2,0,0,"spawm",50.0);
+         obj = InitObj(2,0,0,"spawm",50.0, 1);
          transObj(obj,(float)(inc%7),0.0,(float)(inc%5));
          scaleObj(obj,0.05,0.05,0.05);
          Objects[obj].setVelocity(vec3((lastTime - inc)*-((float)(inc%4)-1.5), 0.0, (timey - inc)*((float)(inc%8)-3.5)));
       }
+
+      mousePos = Objects[0].state.pos + vec3(currPos[0], currPos[1], 0.0) * -g_Camtrans;
+      move = mousePos - Objects[HAMMER].state.pos;
+      Objects[HAMMER].setVelocity(move*(float)(1.0/((timey-lastTime)*2.0)));
       Update((timey-lastTime)*2.0);
       lastTime = glfwGetTime();
       glViewport(0, 0, width, height);

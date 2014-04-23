@@ -42,6 +42,7 @@ class ObjectMesh {
       GLuint idxBuffObj;
       GLuint uvBuffObj;
       GLuint normBuffObj;
+      vector<ObjectMesh> children;
 
       ObjectMesh() 
       {
@@ -84,22 +85,28 @@ class GameObject {
       string name;
       Transform_t state;
       SBoundingBox bounds;
+      int collisionGroup;
+      int grounded;
+      int gravityAffected;
       float mass;
 
       GameObject()
       {
       }
 
-      GameObject(SBoundingBox box, float m, vec3 v, string n) :
+      GameObject(SBoundingBox box, float m, vec3 v, string n, int c) :
          bounds(box),
          mass(m),
-         name(n)
+         name(n),
+         collisionGroup(c)
       {
          initGameObjState(&state);
          state.velocity = v;
+         grounded = 0;
+         gravityAffected = 1;
       }
       
-      int checkCollision(GameObject other);
+      vec3 checkCollision(GameObject other);
       vec3 applyForce(vec3 force);
       vec3 setVelocity(vec3 vel);
       vec3 applyTransform(mat4 tran);
@@ -117,7 +124,7 @@ class ModelMesh {
       GLuint idxBuffObj;
       GLuint uvBuffObj;
       GLuint normBuffObj;
-
+      vector<ModelMesh> children;
       int numFaces;
 
       ModelMesh() 

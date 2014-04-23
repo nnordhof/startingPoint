@@ -139,30 +139,23 @@ void GameObject::rescale(float x, float y, float z) {
 }
 
 
-int GameObject::checkCollision(GameObject other) {
-   vec3 corners[] = {vec3(bounds.left, bounds.bottom, bounds.front) + state.pos,
-                     vec3(bounds.left, bounds.bottom, bounds.back) + state.pos,
-                     vec3(bounds.left, bounds.top, bounds.front) + state.pos,
-                     vec3(bounds.left, bounds.top, bounds.back) + state.pos,
-                     vec3(bounds.right, bounds.bottom, bounds.front) + state.pos,
-                     vec3(bounds.right, bounds.bottom, bounds.back) + state.pos,
-                     vec3(bounds.right, bounds.top, bounds.front) + state.pos,
-                     vec3(bounds.right, bounds.top, bounds.back) + state.pos};
-   vec3 min = vec3(other.bounds.left, other.bounds.bottom, other.bounds.back) + other.state.pos;
-   vec3 max = vec3(other.bounds.right, other.bounds.top, other.bounds.front) + other.state.pos;
-   int i;
+vec3 GameObject::checkCollision(GameObject other) {
+   vec3 min = vec3(bounds.left, bounds.bottom, bounds.back) + state.pos;
+   vec3 max = vec3(bounds.right, bounds.top, bounds.front) + state.pos;
+   vec3 otherMin = vec3(other.bounds.left, other.bounds.bottom, other.bounds.back) + other.state.pos;
+   vec3 otherMax = vec3(other.bounds.right, other.bounds.top, other.bounds.front) + other.state.pos;
 
-   for (i = 0; i < 8; i++) {
-      if (containedIn(corners[i],min,max)) {
-         return 1;
-      }
+   if (max.x > otherMin.x && min.x < otherMax.x && max.y > otherMin.y && 
+         min.y < otherMax.y && max.z > otherMin.z && min.z < otherMax.z) {
+      return state.velocity - other.state.velocity;
    }
 
-   return 0;
+   return vec3(0.0);
 }
 
 vec3 GameObject::applyForce(vec3 force) {
    vec3 deltaV;
+   state.velocity += force / mass;
    return deltaV;
 }
 
@@ -224,6 +217,9 @@ void ObjectMesh::render() {
 }
 
 void GameObject::update(double timeStep) {
+   if (!grounded && gravityAffected) {
+      state.velocity += vec3(0.0, -1.0, 0.0);
+   }
    vec3 mov = state.velocity * (float)timeStep;
    trans(mov.x,mov.y,mov.z);
 }
